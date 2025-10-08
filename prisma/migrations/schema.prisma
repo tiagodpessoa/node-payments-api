@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" 
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  name          String
+  password      String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  payments      Payment[]
+  webhookKeys   WebhookKey[]
+
+  @@map("users")
+}
+
+model Payment {
+  id            String    @id @default(uuid())
+  amount        Decimal   @db.Decimal(10, 2)
+  currency      String    @default("BRL")
+  status        PaymentStatus @default(PENDING)
+  description   String?
+  metadata      Json?     
+  externalId    String?  
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  webhookEvents WebhookEvent[]
+
+  @@map("payments")
+}
+
+model WebhookEvent {
+  id            String    @id @default(uuid())
+  type          String    
+  data          Json      
+  processed     Boolean   @default(false)
+  processedAt   DateTime?
+  paymentId     String?
+  payment       Payment?  @relation(fields: [paymentId], references: [id])
+  createdAt     DateTime  @default(now())
+  attempts      Int       @default(0)
+  
+  @@index([type])
+  @@map("webhook_events")
+}
+
+model WebhookKey {
+  id            String    @id @default(uuid())
+  key           String    @unique
+  active        Boolean   @default(true)
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("webhook_keys")
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+  CANCELLED
+}
